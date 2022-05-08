@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import CustomError from '../errors';
 import Job from '../models/Job';
 import { checkPermission } from '../utils/checkPermission';
+import moment from 'moment';
 
 const createJob = async (req: Request, res: Response) => {
     const { body: { position, company }, user: { userId } } = req;
@@ -64,7 +65,31 @@ const showStats = async (req: Request, res: Response) => {
         interview: finalState.interview || 0,
         declined: finalState.declined || 0,
     }
-    const monthlyApplications: any[] = []
+    const aggregateMonthlyApplications = await Job.aggregate([
+        { $match: { createdBy: new mongoose.Types.ObjectId(req.user.userId) } },
+        {
+            $group: {
+                _id: {
+                    year: {
+                        $year: '$createdAt'
+                    },
+                    month: {
+                        $month: '$createdAt'
+                    }
+                },
+                count: { $sum: 1 }
+            }
+        },
+        { $sort: { '_id.year': -1, '_id.month': -1 } },
+        { $limit: 6 },
+    ]);
+
+    const monthlyApplications = aggregateMonthlyApplications.map((item) => {
+        const { _id: { year, month }, count } = item;
+        const date = moment().month(month - 1).year(year).format('MMM Y');
+        return { date, count }
+    }).reverse();
+    
     res.status(StatusCodes.OK).json({
         stats,
         monthlyApplications
