@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import mongoose from 'mongoose';
 import CustomError from '../errors';
 import Job from '../models/Job';
 import { checkPermission } from '../utils/checkPermission';
@@ -48,7 +49,26 @@ const getAllJobs = async (req: Request, res: Response) => {
 }
 
 const showStats = async (req: Request, res: Response) => {
-    res.send('show stats')
+    let defaultStats = await Job.aggregate([
+        { $match: { createdBy: new mongoose.Types.ObjectId(req.user.userId) } },
+        { $group: { _id: '$status', count: { $sum: 1 } } }
+    ])
+    const finalState = defaultStats.reduce((acc, curr) => {
+        const { _id: title, count } = curr
+        acc[title] = count
+        return acc
+    }, {})
+
+    const stats = {
+        pending: finalState.pending || 0,
+        interview: finalState.interview || 0,
+        declined: finalState.declined || 0,
+    }
+    const monthlyApplications: any[] = []
+    res.status(StatusCodes.OK).json({
+        stats,
+        monthlyApplications
+    })
 }
 
 export {
