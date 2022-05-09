@@ -13,7 +13,16 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import connectDb from './db/connectDb';
+import helmet from 'helmet'
+import xss from 'xss-clean'
+import mongoSanitize from 'express-mongo-sanitize'
+import rateLimiter from 'express-rate-limit'
 
+const apiLimiter = rateLimiter({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  message: 'Too many requests from this IP, please try again after 15 minutes',
+})
 
 const app: Application = express();
 
@@ -24,14 +33,18 @@ if (process.env.NODE_ENV !== 'production') {
 }
 // const __dirname = dirname(fileURLToPath(import.meta.url));
 
-app.use(cors());
 app.use(express.json());
+app.use(cors());
+app.use(helmet());
+app.use(xss());
+app.use(mongoSanitize());
+app.use(apiLimiter);
 // app.use(express.static(path.resolve(__dirname, '.././client/build')));
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/jobs", authenticateUser, jobRouter);
-app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.resolve(__dirname, '.././client/build', 'index.html'))
-})
+// app.get('*', (req: Request, res: Response) => {
+//     res.sendFile(path.resolve(__dirname, '.././client/build', 'index.html'))
+// })
 
 // Custom Middleware
 app.use(notFoundMiddleware);
