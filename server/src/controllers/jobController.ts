@@ -5,6 +5,8 @@ import CustomError from '../errors';
 import Job from '../models/Job';
 import { checkPermission } from '../utils/checkPermission';
 import moment from 'moment';
+import { IJobSchema } from '../models/Job';
+
 
 const createJob = async (req: Request, res: Response) => {
     const { body: { position, company }, user: { userId } } = req;
@@ -45,7 +47,46 @@ const updateJob = async (req: Request, res: Response) => {
 }
 
 const getAllJobs = async (req: Request, res: Response) => {
-    const jobs = await Job.find({ createdBy: req.user.userId });
+    const {status, jobType, search, sort} = req.query;
+
+    const queryObject: {[x: string]: any} = {
+        createdBy: req.user.userId,
+       
+    }
+
+    if(status && status !== 'all') {
+        queryObject.status = status;
+    }
+
+    if(jobType && jobType !== 'all') {
+        queryObject.jobType = jobType;
+    }
+    
+    if(search) {
+        queryObject.position = {$regex: search, $options: 'i'}
+    }
+
+    let result = Job.find(queryObject);
+
+    if(sort === 'latest') {
+        result = result.sort('-createdAt')
+    }
+
+    if(sort === 'oldest') {
+        result = result.sort('createdAt')
+    }
+
+    if(sort === 'a-z') {
+        result = result.sort('position')
+    }
+
+    if(sort === 'z-a') {
+        result = result.sort('-position')
+    }
+
+
+    const jobs = await result;
+
     res.status(StatusCodes.OK).json({ jobs, totalJobs: jobs.length, numOfPages: 1 })
 }
 

@@ -1,6 +1,6 @@
 import mongoose, { Schema, SchemaTypes, Types } from "mongoose";
 
-interface IJobSchema {
+export interface IJobSchema {
     company: string,
     position: string,
     status: 'interview' | 'declined' | 'pending',
